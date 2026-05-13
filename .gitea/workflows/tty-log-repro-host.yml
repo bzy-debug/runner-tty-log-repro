@@ -1,0 +1,38 @@
+name: tty-log-repro-host
+
+on:
+  workflow_dispatch:
+    inputs:
+      host_runner:
+        description: Private host-runner label for internal reproduction
+        required: false
+        default: internal-host-runner
+
+jobs:
+  internal-host:
+    name: repro (internal host runner)
+    runs-on: ${{ github.event.inputs.host_runner || 'internal-host-runner' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe stdout and render progress
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -t 1 ]; then
+            echo "shell_stdout_is_tty=true"
+          else
+            echo "shell_stdout_is_tty=false"
+          fi
+          python3 scripts/tty_progress.py
+
+      - name: Docker build with auto progress
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v docker >/dev/null 2>&1; then
+            echo "docker is not available on this runner; skipping docker portion"
+            exit 0
+          fi
+          docker version
+          docker build --progress=auto -t tty-log-repro:ci .

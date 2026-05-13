@@ -1,0 +1,40 @@
+name: tty-log-repro
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  repro:
+    name: repro (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-latest
+          - macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe stdout and render progress
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -t 1 ]; then
+            echo "shell_stdout_is_tty=true"
+          else
+            echo "shell_stdout_is_tty=false"
+          fi
+          python3 scripts/tty_progress.py
+
+      - name: Docker build with auto progress
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v docker >/dev/null 2>&1; then
+            echo "docker is not available on this runner; skipping docker portion"
+            exit 0
+          fi
+          docker version
+          docker build --progress=auto -t tty-log-repro:ci .
